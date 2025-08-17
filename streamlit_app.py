@@ -469,8 +469,6 @@ stats_display["Mean"] = stats_display["Mean"].round(3)
 stats_display["SD"]   = stats_display["SD"].round(3)
 st.table(stats_display)
 
-csv_bytes = stats_display.reset_index().to_csv(index=False).encode("utf-8")
-
 #-----------------------------------
 #Correlation Coefficent Display
 #-----------------------------------
@@ -1011,8 +1009,171 @@ st.subheader("Emissions vs. Temperature")
 #-------------------------------
 #Emissions vs Temp Scatter
 #-------------------------------
+# Filter for Norway
+norway_data = df_group[df_group['Country'] == 'Norway'].copy()
 
+# Further filter for Emissions and Temperature indicators
+indicators_to_keep = ['CO2 Emissions (Metric Tons)', 'Temperature']
+norway_indicators = norway_data[norway_data['Indicator'].isin(indicators_to_keep)].copy()
+
+# Filter for years between 1980 and 2014
+norway_emissions_temp = norway_indicators[
+    (norway_indicators['Year'] >= 1980) & (norway_indicators['Year'] <= 2014)
+].copy()
+
+# Reshape the DataFrame from long to wide format
+norway_pivot = norway_emissions_temp.pivot(index='Year', columns='Indicator', values='Value')
+
+# Final scatter plot with regression line and labels
+final_scatter_plot = (
+    ggplot(norway_pivot, aes(x='CO2 Emissions (Metric Tons)', y='Temperature'))
+    + geom_point()
+    + geom_smooth(method='lm', se=False)
+    + labs(
+        title="CO2 Emissions vs. Temperature in Norway (1980-2014)",
+        x="CO2 Emissions (Metric Tons)",
+        y="Temperature (°C)"
+    )
+)
+
+final_scatter_plot
+
+#-----------------------------
+#----------------------------
+#Analysis
 st.header("Analysis")
+
+#-----------------------------
+#Mean and SD
+#-------------------------
+st.subheader("Mean & SD")
+
+# Mean & SD + Correlation for Norway (uses the group dataset)
+st.subheader("Mean & SD")
+
+# year slider based on available Norway years in the group dataset
+nor_year_min = int(df_group.loc[df_group["Country"] == "Norway", "Year"].min())
+nor_year_max = int(df_group.loc[df_group["Country"] == "Norway", "Year"].max())
+start_nor, end_nor = st.slider(
+    "Year range (Norway)",
+    min_value=nor_year_min, max_value=nor_year_max,
+    value=(1980, 2014), step=1,
+    help="Choose years to include in the Norway summary stats"
+)
+
+# filter to Norway + indicators within the chosen range
+subset_nor = df_group[
+    (df_group["Country"] == "Norway") &
+    (df_group["Year"].between(start_nor, end_nor)) &
+    (df_group["Indicator"].isin(["CO2 Emissions (Metric Tons)", "Temperature"]))
+].copy()
+
+# map to simple metric names
+name_map_nor = {
+    "CO2 Emissions (Metric Tons)": "Emissions",
+    "Temperature": "Temperature"
+}
+subset_nor["Metric"] = subset_nor["Indicator"].map(name_map_nor)
+
+# compute mean/sd
+stats_nor = (subset_nor
+             .groupby("Metric")["Value"]
+             .agg(["mean", "std"])
+             .rename(columns={"mean": "Mean", "std": "SD"}))
+
+# extract values for metric cards
+em_mean_n = stats_nor.loc["Emissions", "Mean"] if "Emissions" in stats_nor.index else float("nan")
+em_sd_n   = stats_nor.loc["Emissions", "SD"]   if "Emissions" in stats_nor.index else float("nan")
+t_mean_n  = stats_nor.loc["Temperature", "Mean"] if "Temperature" in stats_nor.index else float("nan")
+t_sd_n    = stats_nor.loc["Temperature", "SD"]   if "Temperature" in stats_nor.index else float("nan")
+
+# metric cards
+c1, c2 = st.columns(2)
+c1.metric("Emissions — Mean (Metric Tonnes)", f"{em_mean_n:,.0f}", delta=f"SD {em_sd_n:,.0f}")
+c2.metric("Temperature — Mean (°C)", f"{t_mean_n:,.2f}", delta=f"SD {t_sd_n:,.2f}")
+
+# table
+st.markdown("**Details**")
+stats_display_nor = stats_nor.copy()
+stats_display_nor["Mean"] = stats_display_nor["Mean"].round(3)
+stats_display_nor["SD"]   = stats_display_nor["SD"].round(3)
+st.table(stats_display_nor)
+
+# correlation metric (robust to column label variations)
+st.subheader("Emissions vs. Temperature Correlation — Norway")
+
+wide_nor = subset_nor.pivot(index="Year", columns="Indicator", values="Value")
+
+rename_map = {}
+for col in wide_nor.columns:
+    if col.strip().lower() in ("co2 emissions (metric tons)", "co₂ emissions (metric tons)"):
+        rename_map[col] = "Emissions"
+for col in wide_nor.columns:
+    if "temperature" in col.strip().lower():
+        rename_map[col] = "Temperature"
+
+wide_nor = wide_nor.rename(columns=rename_map).sort_index()
+
+needed = {"Emissions", "Temperature"}
+if not needed.issubset(set(wide_nor.columns)):
+    st.warning(f"Missing expected columns for correlation. Found: {list(wide_nor.columns)}")
+else:
+    wide_nor = wide_nor.dropna(subset=["Emissions", "Temperature"], how="any")
+    if len(wide_nor) < 2:
+        st.warning("Not enough Norway rows to compute correlation in the selected range.")
+    else:
+        r_nor = wide_nor["Emissions"].corr(wide_nor["Temperature"], method="pearson")
+        st.metric(
+            label="Pearson Correlation Coefficient (Emissions vs. Temperature)",
+            value=f"r = {r_nor:.3f}",
+            delta=(
+                "Very Strongly Associated" if abs(r_nor) >= 0.8 else
+                "Strongly Associated"      if abs(r_nor) >= 0.6 else
+                "Clearly Associated"       if abs(r_nor) >= 0.4 else
+                "Weakly Associated"        if abs(r_nor) >= 0.2 else
+                "Very Weakly Associated"
+            )
+        )
+
+#-------------------------------------------
+# Correlation Coefficient Display — Norway
+#------------------------------------------
+
+# Build the wide_Norway DataFrame
+norway_data = df_individual[
+    (df_individual['Country'] == 'Norway') &
+    (df_individual['Indicator'].isin(['CO2 Emissions (Metric Tons)', 'Temperature']))
+].copy()
+
+# Pivot to wide format: Year as index
+wide_Norway = norway_data.pivot(index='Year', columns='Indicator', values='Value')
+
+# Rename columns for easier access
+wide_Norway = wide_Norway.rename(columns={
+    'CO2 Emissions (Metric Tons)': 'Emissions',
+    'Temperature': 'Temperature'
+})
+
+# Sort by year
+wide_Norway = wide_Norway.sort_index()
+
+# Compute correlation coefficient
+r = wide_Norway["Emissions"].corr(wide_Norway["Temperature"], method="pearson")
+
+# Display with Streamlit metric
+st.subheader("Emissions vs. Temperature Correlation — Norway")
+st.metric(
+    label="Pearson Correlation Coefficient (Emissions vs. Temperature)",
+    value=f"r = {r:.3f}",
+    delta=(
+        "Very Strongly Associated" if abs(r) >= 0.8 else
+        "Strongly Associated" if abs(r) >= 0.6 else
+        "Clearly Associated" if abs(r) >= 0.4 else
+        "Weakly Associated" if abs(r) >= 0.2 else
+        "Very Weakly Associated"
+    )
+)
+
 
 st.header("Summary Plot")
 
