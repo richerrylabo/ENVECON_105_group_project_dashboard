@@ -101,7 +101,7 @@ with tab1:
     # apply theme and add caption
     my_theme(ax, fig, "Limited to reporting countries")
 
-    # show plot in streamlit
+    # show plot
     st.pyplot(fig)
 
 
@@ -140,7 +140,7 @@ with tab1:
     # apply theme and caption
     my_theme(ax, fig, "Limited to reporting countries")
 
-    # display in streamlit
+    # display plot
     st.pyplot(fig)
 
     #--------------------------------------------------------------------
@@ -203,7 +203,7 @@ with tab1:
     # apply theme + caption
     my_theme(ax, fig)
 
-    # display in streamlit
+    # display plot
     st.pyplot(fig)
 
 
@@ -251,7 +251,7 @@ with tab1:
 
     plt.tight_layout()
 
-    # display in Streamlit
+    # display plot
     st.pyplot(fig)
 
     #-----------------------------------------
@@ -341,7 +341,7 @@ with tab1:
 
     plt.tight_layout(rect=[0.06, 0.08, 0.98, 0.93])
 
-    # render in streamlit
+    # display plot
     st.pyplot(g.figure)
 
 
@@ -407,7 +407,7 @@ with tab1:
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
 
-    # display in Streamlit
+    # display plot
     st.pyplot(fig)
 
     #----------------------------------------
@@ -547,7 +547,7 @@ with tab1:
     ax.tick_params(axis='x', labelsize=12)
     ax.tick_params(axis='y', labelsize=12)
 
-    # render in Streamlit
+    # display plot
     plt.tight_layout()
     st.pyplot(fig)
 
@@ -718,7 +718,7 @@ with tab1:
         .sort_index()
     )
 
-    # render 2x2 grid with Streamlit columns
+    # make 2x2 grid with columns
     c1, c2 = st.columns(2)
     with c1:
         st.pyplot(fig_world_emissions(df_individual))
@@ -730,7 +730,7 @@ with tab1:
         st.pyplot(fig_us_scaled_scatter(wide_US))
 
 with tab2:
-    st.markdown("Jump to: [Visuals](#visuals) | [Analysis](#analysis) | [Summary Plot](#summary-plot)")
+    st.markdown("Jump to: [Visuals](#nor-visuals) | [Analysis](#nor-analysis) | [Summary Plot](#nor-summary-plot)")
     st.header("Intro")
     st.write(
         """This dashboard presents the results of a group case study focused on Norway’s role in global carbon dioxide (CO₂) emissions and the potential connections between emissions, temperature changes, and natural disasters.
@@ -741,7 +741,7 @@ with tab2:
         "**1)** How have Norway’s CO₂ emissions changed over time, and how does Norway compare to the rest of the world?  \n"
         "**2)** Are CO₂ emissions, temperature, and natural disasters within Norway associated?"
     )
-    st.header("Visuals")
+    st.header("Visuals", anchor="nor-visuals")
 
     st.subheader("CO2 Emissions Per Country:")
     #-------------------------------
@@ -898,7 +898,7 @@ with tab2:
         + scale_y_discrete(limits=country_order[::-1])  # highest at top
     )
 
-    # render in Streamlit
+    # display plot
     fig = tile_plot.draw()
     st.pyplot(fig, use_container_width=True)
     plt.close(fig)
@@ -1043,7 +1043,7 @@ with tab2:
     #-----------------------------
     #----------------------------
     #Analysis
-    st.header("Analysis")
+    st.header("Analysis", anchor="nor-analysis")
 
     #-----------------------------
     #Mean and SD
@@ -1136,8 +1136,8 @@ with tab2:
 
 
 
-    st.header("Summary Plot")
-        # --- Summary Plot (Norway) ---
+    st.header("Summary Plot", anchor="nor-summary-plot")
+        #Summary Plot (Norway)
 
     def fig_summary_norway(df_long):
         # ensure numeric year
@@ -1154,7 +1154,7 @@ with tab2:
 
         ax00 = fig.add_subplot(gs[0, 0])
         ax01 = fig.add_subplot(gs[0, 1])
-        sub_gs = gs[1, 0].subgridspec(2, 1, hspace=0.25)
+        sub_gs = gs[1, 0].subgridspec(2, 1, hspace=0.5)
         ax10 = fig.add_subplot(sub_gs[0, 0])  # emissions
         ax20 = fig.add_subplot(sub_gs[1, 0])  # temperature
         ax11 = fig.add_subplot(gs[1, 1])      # scaled scatter
@@ -1192,25 +1192,23 @@ with tab2:
         nor_co2_y = nor_1980_2014[nor_1980_2014["Indicator"] == "CO2 Emissions (Metric Tons)"]
         nor_tmp_y = nor_1980_2014[nor_1980_2014["Indicator"].str.contains("Temperature", case=False, na=False)]
 
-        # panel C top: emissions with LOWESS
-        if not nor_co2_y.empty:
-            sns.regplot(
-                x="Year", y="Value", data=nor_co2_y, ax=ax10,
-                scatter=True, lowess=True, color="firebrick",
-                scatter_kws={"s": 35, "alpha": 0.8}, line_kws={"linewidth": 2}
-            )
+        #panel C top: Norway CO2 with LOWESS
+        ax10.clear()
+        ax10.scatter(nor_co2_y["Year"], nor_co2_y["Value"], s=35, alpha=0.8, color="firebrick")
+        co2_sorted = nor_co2_y.sort_values("Year")
+        sm_co2 = lowess(co2_sorted["Value"], co2_sorted["Year"], frac=0.4, it=0, return_sorted=True)
+        ax10.plot(sm_co2[:, 0], sm_co2[:, 1], linewidth=2, color="firebrick")
         ax10.set_title("CO₂ Emissions (Norway, 1980–2014)")
         ax10.set_xlabel("")
         ax10.set_ylabel("")
         ax10.grid(True, linestyle="--", alpha=0.4)
 
-        # panel C bottom: temperature with LOWESS
-        if not nor_tmp_y.empty:
-            sns.regplot(
-                x="Year", y="Value", data=nor_tmp_y, ax=ax20,
-                scatter=True, lowess=True, color="deepskyblue",
-                scatter_kws={"s": 35, "alpha": 0.8}, line_kws={"linewidth": 2}
-            )
+        #panel C bottom: Norway Temperature with LOWESS
+        ax20.clear()
+        ax20.scatter(nor_tmp_y["Year"], nor_tmp_y["Value"], s=35, alpha=0.8, color="deepskyblue")
+        tmp_sorted = nor_tmp_y.sort_values("Year")
+        sm_tmp = lowess(tmp_sorted["Value"], tmp_sorted["Year"], frac=0.4, it=0, return_sorted=True)
+        ax20.plot(sm_tmp[:, 0], sm_tmp[:, 1], linewidth=2, color="deepskyblue")
         ax20.set_title("Temperature (Norway, 1980–2014)")
         ax20.set_xlabel("Year")
         ax20.set_ylabel("")
