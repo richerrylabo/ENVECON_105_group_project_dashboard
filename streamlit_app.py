@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import pandas as pd 
 import numpy as np
 import seaborn as sns
+from statsmodels.nonparametric.smoothers_lowess import lowess
+
 
 
 
@@ -321,6 +323,15 @@ plt.tight_layout(rect=[0.06, 0.08, 0.98, 0.93])
 
 # render in streamlit
 st.pyplot(g.fig)
+
+
+#----------------------------------------
+#scatter plots
+#----------------------------------------
+
+st.write("**CO2 Emissions and Temperature Side By Side Scatter Plots:**")
+
+
 
 #----------------------------------------
 #----------------------------------------
